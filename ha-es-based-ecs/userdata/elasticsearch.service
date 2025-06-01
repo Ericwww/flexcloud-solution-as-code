@@ -1,0 +1,15 @@
+[Unit]
+Description=Elasticsearch
+After=network.target
+
+[Service]
+User=es
+Group=es
+Environment="ES_HOME=/usr/local/es/elasticsearch-7.9.3"
+Environment="ES_PATH_CONF=/usr/local/es/elasticsearch-7.9.3/config"
+ExecStart=/usr/local/es/elasticsearch-7.9.3/bin/elasticsearch
+Restart=always
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
