@@ -15,7 +15,7 @@ variable "vpc_name" {
 
 variable "es_ecs_count" {
   type    = number
-  default = "es-demo"
+  default = 3
 }
 
 variable "ecs_password" {
