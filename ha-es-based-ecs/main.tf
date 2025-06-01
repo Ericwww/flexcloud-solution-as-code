@@ -75,6 +75,7 @@ resource "huaweicloud_networking_secgroup_rule" "es" {
 }
 
 resource "huaweicloud_networking_secgroup_rule" "kibana" {
+  count             = var.enable_kibana ? 1 : 0
   description       = "Allows accesses to websites over HTTP."
   direction         = "ingress"
   ethertype         = "IPv4"
@@ -86,7 +87,7 @@ resource "huaweicloud_networking_secgroup_rule" "kibana" {
 }
 
 resource "huaweicloud_vpc_eip" "myeip" {
-  count = 2
+  count = var.enable_kibana ? 2 : 1
 
   bandwidth {
     charge_mode = "bandwidth"
@@ -144,6 +145,7 @@ resource "huaweicloud_compute_instance" "elasticserach" {
 }
 
 resource "huaweicloud_compute_instance" "kibana" {
+  count      = var.enable_kibana ? 1 : 0
   depends_on = [huaweicloud_compute_instance.es-master, local.slave_ecs]
 
   name               = "${var.ecs_name}-kibana"
@@ -166,7 +168,7 @@ resource "huaweicloud_compute_instance" "kibana" {
 }
 
 output "kibana_address" {
-  value = "http://${huaweicloud_vpc_eip.myeip[1].address}:5601"
+  value = var.enable_kibana ? "http://${huaweicloud_vpc_eip.myeip[1].address}:5601" : "kibana not enabled"
 }
 
 output "es_address" {
