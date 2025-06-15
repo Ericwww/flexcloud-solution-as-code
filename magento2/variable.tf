@@ -120,3 +120,8 @@ variable "magento_private_key" {
   type      = string
   sensitive = true
 }
+
+variable "use_sample_data" {
+  type    = bool
+  default = false
+}

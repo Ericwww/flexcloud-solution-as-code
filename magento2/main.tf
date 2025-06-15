@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     huaweicloud = {
-      source = "huaweicloud/huaweicloud"
+      source  = "huaweicloud/huaweicloud"
       version = "1.73.9"
     }
   }
@@ -23,13 +23,13 @@ locals {
 }
 
 resource "huaweicloud_vpc" "vpc" {
-    count = length(var.vpc_id) > 0 ? 0 : 1
-  name = var.vpc_name
-  cidr = "192.168.0.0/16"
+  count = length(var.vpc_id) > 0 ? 0 : 1
+  name  = var.vpc_name
+  cidr  = "192.168.0.0/16"
 }
 
 resource "huaweicloud_vpc_subnet" "subnet" {
-    count = length(var.subnet_id) > 0 ? 0 : 1
+  count      = length(var.subnet_id) > 0 ? 0 : 1
   name       = var.vpc_name
   cidr       = "192.168.1.0/24"
   gateway_ip = "192.168.1.1"
@@ -54,8 +54,18 @@ resource "huaweicloud_networking_secgroup_rule" "allow_frontend" {
   ethertype         = "IPv4"
   protocol          = "tcp"
   remote_ip_prefix  = "0.0.0.0/0"
-    port_range_min             = 80
-  port_range_max = 80
+  port_range_min    = 80
+  port_range_max    = 80
+  security_group_id = huaweicloud_networking_secgroup.secgroup.id
+}
+
+resource "huaweicloud_networking_secgroup_rule" "allow_ssh_for_debug" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  remote_ip_prefix  = "0.0.0.0/0"
+  port_range_min    = 22
+  port_range_max    = 22
   security_group_id = huaweicloud_networking_secgroup.secgroup.id
 }
 
@@ -98,37 +108,37 @@ resource "huaweicloud_compute_servergroup" "servergroup" {
   policies = ["anti-affinity"]
 }
 
-# resource "huaweicloud_rds_instance" "rds_instance" {
-#   name                = var.rds_name
-#   flavor              = data.huaweicloud_rds_flavors.rds_flavor.flavors[0].name
-#   ha_replication_mode = "async"
-#   vpc_id              = local.vpc_id
-#   subnet_id           = local.subnet_id
-#   security_group_id   = huaweicloud_networking_secgroup.secgroup.id
-#   availability_zone = [
-#     data.huaweicloud_availability_zones.az.names[0],
-#     data.huaweicloud_availability_zones.az.names[0],
-#   ]
-#   db {
-#     password = var.rds_password
-#     type     = "MySQL"
-#     version  = "8.0"
-#   }
-#   volume {
-#     type = "ULTRAHIGH"
-#     size = var.rds_volume_size
-#   }
-#   backup_strategy {
-#     keep_days  = 7
-#     start_time = "02:00-03:00"
-#   }
-# }
+resource "huaweicloud_rds_instance" "rds_instance" {
+  name                = var.rds_name
+  flavor              = data.huaweicloud_rds_flavors.rds_flavor.flavors[0].name
+  ha_replication_mode = "async"
+  vpc_id              = local.vpc_id
+  subnet_id           = local.subnet_id
+  security_group_id   = huaweicloud_networking_secgroup.secgroup.id
+  availability_zone = [
+    data.huaweicloud_availability_zones.az.names[0],
+    data.huaweicloud_availability_zones.az.names[0],
+  ]
+  db {
+    password = var.rds_password
+    type     = "MySQL"
+    version  = "8.0"
+  }
+  volume {
+    type = "ULTRAHIGH"
+    size = var.rds_volume_size
+  }
+  backup_strategy {
+    keep_days  = 7
+    start_time = "02:00-03:00"
+  }
+}
 
-# resource "huaweicloud_rds_database" "database" {
-#   instance_id   = huaweicloud_rds_instance.rds_instance.id
-#   name          = "magento"
-#   character_set = "utf8mb4"
-# }
+resource "huaweicloud_rds_database" "database" {
+  instance_id   = huaweicloud_rds_instance.rds_instance.id
+  name          = "magento"
+  character_set = "utf8mb4"
+}
 
 resource "huaweicloud_dcs_instance" "redis_instance" {
   name             = var.redis_name
@@ -157,7 +167,7 @@ resource "huaweicloud_identity_agency" "identity_agency" {
   duration               = "ONEDAY"
   project_role {
     project = "eu-central-6001"
-    roles = ["ECS FullAccess", "IMS FullAccess", "VPC Administrator", "VPC Administrator", "Server Administrator", "DNS Administrator"]
+    roles   = ["ECS FullAccess", "IMS FullAccess", "VPC Administrator", "VPC Administrator", "Server Administrator", "DNS Administrator"]
   }
 
 }
@@ -183,30 +193,6 @@ resource "huaweicloud_sfs_turbo" "sfs_turbo" {
 resource "huaweicloud_compute_instance" "magento1" {
   # depends_on = [elasticsearch]
   name                        = "${var.ecs_name}-1"
-  image_id                    = data.huaweicloud_images_image.rhel.id
-  flavor_id                   = "s6.xlarge.2"
-  security_group_ids          = [huaweicloud_networking_secgroup.secgroup.id]
-  system_disk_type            = "SSD"
-  system_disk_size            = 40
-  admin_pass                  = var.ecs_password
-  delete_disks_on_termination = true
-  network {
-    uuid = local.subnet_id
-  }
-  scheduler_hints {
-    group = huaweicloud_compute_servergroup.servergroup.id
-  }
-  agency_name = huaweicloud_identity_agency.identity_agency.name
-  # agent_list = "hss,ces"
-  eip_id    = huaweicloud_vpc_eip.eip_ecs[0].id
-#   user_data = "#!/bin/bash\necho 'root:${var.ecs_password}' | chpasswd\nwget -P /tmp/ https://solution-as-code-w8das.obs.eu-central-6001.apistack.one.hu/magento2-base-ecs/install_magento.sh\nchmod +x /tmp/install_magento.sh\nsource /tmp/install_magento.sh ${huaweicloud_vpc_eip.eip_elb.address} ${huaweicloud_rds_instance.rds_instance.fixed_ip} ${var.rds_password} ${huaweicloud_dcs_instance.redis_instance.private_ip} ${var.redis_password} ${var.elasticsearch_password} ${var.elasticsearch_host} ${huaweicloud_sfs_turbo.sfs_turbo.export_location} ${var.magento_admin_firstname} ${var.magento_admin_lastname} ${var.magento_admin_password} ${var.magento_admin_email} ${var.magento_public_key} ${var.magento_private_key} ${var.ecs_name}-ims ${huaweicloud_cbr_vault.cbr_vault.id} > /tmp/install_magento.log 2>&1\nrm -rf /tmp/install_magento.sh"
-    user_data = "#!/bin/bash\necho 'root:${var.ecs_password}' | chpasswd"
-}
-
-resource "huaweicloud_compute_instance" "magento2" {
-  depends_on                  = [huaweicloud_compute_instance.magento1]
-  count                       = var.ecs_number - 1
-  name                        = "${var.ecs_name}-${count.index + 2}"
   image_id                    = data.huaweicloud_images_image.image.id
   flavor_id                   = "s6.xlarge.2"
   security_group_ids          = [huaweicloud_networking_secgroup.secgroup.id]
@@ -222,9 +208,33 @@ resource "huaweicloud_compute_instance" "magento2" {
   }
   agency_name = huaweicloud_identity_agency.identity_agency.name
   # agent_list = "hss,ces"
-  eip_id    = huaweicloud_vpc_eip.eip_ecs[count.index + 1].id
-  user_data = "#!/bin/bash\necho 'root:${var.ecs_password}' | chpasswd\nwget -P /tmp/ https://solution-as-code-w8das.obs.eu-central-6001.apistack.one.hu/magento2-base-ecs/modify_specification.sh\nchmod +x /tmp/modify_specification.sh\nsh /tmp/modify_specification.sh ${var.ecs_name}-ims ${var.ecs_password} > /tmp/modify_specification.log 2>&1\nrm -rf /tmp/modify_specification.sh"
+  eip_id    = huaweicloud_vpc_eip.eip_ecs[0].id
+  user_data = "#!/bin/bash\necho 'root:${var.ecs_password}' | chpasswd\nwget -P /tmp/ https://solution-as-code-w8das.obs.eu-central-6001.apistack.one.hu/magento2-base-ecs/install_magento.sh\nchmod +x /tmp/install_magento.sh\nsource /tmp/install_magento.sh ${huaweicloud_vpc_eip.eip_elb.address} ${huaweicloud_rds_instance.rds_instance.fixed_ip} ${var.rds_password} ${huaweicloud_dcs_instance.redis_instance.private_ip} ${var.redis_password} ${var.elasticsearch_password} ${var.elasticsearch_host} ${huaweicloud_sfs_turbo.sfs_turbo.export_location} ${var.magento_admin_firstname} ${var.magento_admin_lastname} ${var.magento_admin_password} ${var.magento_admin_email} ${var.magento_public_key} ${var.magento_private_key} ${var.use_sample_data} > /tmp/install_magento.log 2>&1\nrm -rf /tmp/install_magento.sh"
+  #   user_data = "#!/bin/bash\necho 'root:${var.ecs_password}' | chpasswd"
 }
+
+# resource "huaweicloud_compute_instance" "magento2" {
+#   depends_on                  = [huaweicloud_compute_instance.magento1]
+#   count                       = var.ecs_number - 1
+#   name                        = "${var.ecs_name}-${count.index + 2}"
+#   image_id                    = data.huaweicloud_images_image.image.id
+#   flavor_id                   = "s6.xlarge.2"
+#   security_group_ids          = [huaweicloud_networking_secgroup.secgroup.id]
+#   system_disk_type            = "SSD"
+#   system_disk_size            = 40
+#   admin_pass                  = var.ecs_password
+#   delete_disks_on_termination = true
+#   network {
+#     uuid = local.subnet_id
+#   }
+#   scheduler_hints {
+#     group = huaweicloud_compute_servergroup.servergroup.id
+#   }
+#   agency_name = huaweicloud_identity_agency.identity_agency.name
+#   # agent_list = "hss,ces"
+#   eip_id    = huaweicloud_vpc_eip.eip_ecs[count.index + 1].id
+# #   user_data = "#!/bin/bash\necho 'root:${var.ecs_password}' | chpasswd\nwget -P /tmp/ https://solution-as-code-w8das.obs.eu-central-6001.apistack.one.hu/magento2-base-ecs/modify_specification.sh\nchmod +x /tmp/modify_specification.sh\nsh /tmp/modify_specification.sh ${var.ecs_name}-ims ${var.ecs_password} > /tmp/modify_specification.log 2>&1\nrm -rf /tmp/modify_specification.sh"
+# }
 
 resource "huaweicloud_lb_loadbalancer" "elb" {
   name          = var.elb_name
@@ -252,14 +262,14 @@ resource "huaweicloud_lb_member" "elb_member1" {
   weight        = 1
 }
 
-resource "huaweicloud_lb_member" "elb_member2" {
-  count         = var.ecs_number - 1
-  address       = huaweicloud_compute_instance.magento2[count.index].access_ip_v4
-  pool_id       = huaweicloud_lb_pool.elb_pool.id
-  protocol_port = 80
-  subnet_id     = var.subnet_ipv4_id
-  weight        = 1
-}
+# resource "huaweicloud_lb_member" "elb_member2" {
+#   count         = var.ecs_number - 1
+#   address       = huaweicloud_compute_instance.magento2[count.index].access_ip_v4
+#   pool_id       = huaweicloud_lb_pool.elb_pool.id
+#   protocol_port = 80
+#   subnet_id     = var.subnet_ipv4_id
+#   weight        = 1
+# }
 
 resource "huaweicloud_lb_monitor" "elb_monitor" {
   delay       = 5

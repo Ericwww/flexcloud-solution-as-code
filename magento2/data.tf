@@ -2,13 +2,7 @@ data "huaweicloud_availability_zones" "az" {}
 
 data "huaweicloud_images_image" "image" {
   most_recent = true
-  name        = "Ubuntu 20.04 server 64bit"
-  visibility  = "public"
-}
-
-data "huaweicloud_images_image" "rhel" {
-  most_recent = true
-  name        = "Redhat Linux Enterprise 8.10 64bit"
+  name        = "Ubuntu 22.04 server 64bit"
   visibility  = "public"
 }
 
